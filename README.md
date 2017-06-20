@@ -1,4 +1,4 @@
-![Battleship logo](https://github.com/rwever-projects/Battleship/blob/master/battleshiptitle.png)
+![Battleship logo](https://github.com/rwever-projects/Battleship/blob/master/images/battleshiptitle.png)
 #### Author: Rudi Wever
 ## Java game with GUI interface.  Client/Server implementation.
 #### Languages: Java
