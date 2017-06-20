@@ -1,0 +1,327 @@
+Definition of ships:
+0-	No ship
+1-	Patrol Boat length=2
+2-	Submarine length =3
+3-	Destroyer length =3
+4-	Battle Ship length = 4
+5-	Carrier length = 5
+
+________________________________________________________________________________________________________________________________
+
+From client to server:
+void fire(int userNumber, int x, int y)				//Indicates to the server the position fired at
+							//Looses turn, hide "Your Turn" indication, disable button x,y
+void setShiptAt (int userNumber, int x, int y, int shipType, int Orientation)	//Indicate to server the position of the shipType and Orientation
+							//x ,y indicate the top left position, shipType indicates the type of ship
+void setPlayLevel(int userNumber, int level)			//Only User1 can set level
+void setMyName(int userNumber, string name)			//Set my name
+
+
+________________________________________________________________________________________________________________________________
+
+From server to client:
+void setUserNumber (int userNumber)				//Client knows which user number corresponds  ??
+void setOpponentName (string name)
+void setBoardsToConfigureMode()				//Clients to initialize their boards and opponent's board to blank
+							// and enable ships placement and setting game level
+void setBoardsToPlayMode()					//Client to enable boards for playing mode
+void setYourTurn(boolean state)				//If state is true client, display "My Turn" indicator
+							//and allowed to fire
+
+void setBoardPositionState(int userNumber, int x, int y, int shipType, int state)	//either boards can be fired at
+
+void setWinner(int userNumnber)				//When there is winner,the server tells both user who won
+void theOpponentDisconnected()				//The server notify a user that the opponent disconnected
+
+________________________________________________________________________________________________________________________________
+
+Possible command sequences:
+			User1					User2
+The first client connects to server:
+From server:	setUserNumber(1)
+From server:	setBoardsToConfigureMode()
+To Server:	setMyName(int UserNumber, string name)
+To Server:	setShiptAt (int UserNumber, int x, int y, int shipType, int Orientation)
+..
+To Server:	setShiptAt (int userNumber, int x, int y, int shipType, int Orientation)
+To Server:	setPlayLevel(int userNumber, int level)	
+
+The second client connects to server:
+From server:						setUserNumber(2)
+From server:						setBoardsToConfigureMode()
+To Server:						setMyName(int userNumber, string name)
+To Server:						setShiptAt (int userNumber, int x, int y, int shipType, int Orientation)
+..
+To Server:						setShiptAt (int userNumber, int x, int y, int shipType, int Orientation)
+
+Server waits until there are 2 users connected and both users have placed all their ships and the play level has been set by user1
+
+From Server:	setBoardsToPlayMode()
+From Server:						setBoardsToPlayMode()
+
+From server:	setYourTurn(true)
+To server:	fire(, userNumber,x1,y1)
+From Server:	setFiredAt(2, x1, y1, 0, false)
+From Server:						setFiredAt(2, x1, y1, 0, false)
+
+From server:						setYourTurn(true)
+To server:						fire(userNumber,x2,y2)
+From Server:						setFiredAt(1, x2, y2, 5, true)
+From server:	setFiredAt(1, x2, y2, 5, true)
+
+From server:	setYourTurn(true)
+...
+...
+To server:	fire(userNumber,x3,y3)
+From server:						setFiredAt(2, x3, y3, 3, true)
+From Server:	setFiredAt(2, x3, y3, 3, true)
+From server:	setWinner(user1)			setWinner(user1)
+
+
+
+_____________________________________________________________________________________________________________________________________
+
+Client operations:
+Initial:
+void Initialize(){
+	DisplayBoard myBoard = new DisplayBoard()	//10 X 10 area with 100 individual indicators.
+							//This area contains my ships and is the board that the opponent fires at. 
+	DisplayBoard opponentBoard = new DisplayBoard() //10 X 10 area with 100 individual indicators.
+							//This is the board that I fire at
+							//This area initially does not contain any ship indication.
+							//After I fire the button is disabled to indicate that it has been fired,
+							// and later updated if it was a hit.
+	Set myTurn to False.
+	Set myUserNumber=null
+}
+
+void setBoardsToConfigure(){
+	Present the myBoard with all buttons enabled to allow the placement of ships.
+	Present the configuration panel to allow the user to input UserName and Play Level(if user1) before enabling my ships to be positioned
+	if ( not user1)
+		hide play level selection
+}
+
+void setBoardsToPlayMode(){
+	Present myBoard with all buttons disabled and my ships displayed in green (should have already been set too green during the configuration).
+	Present the opponentBoard with all buttons enabled.
+}
+
+void setUserNumber (int userNumber){
+	set myUserNumber=userNumber
+	myName="User" + userNumber
+}
+
+actionSetMyName (){
+	get the text field for name
+	myName=name
+	setMyName (name)
+}
+
+void setMyName(name){
+	sendString= prepareSendString (setMyNameCmd, userNumber, name)
+	sendToServer(sendString)
+}
+
+void setYourTurn (boolean state)
+	if (state==true)
+		myTurn=true
+	else
+		myTurn=false
+}
+
+actionOpponetBoardSelected(){	//occurs when I fire at the opponent's board (myTargets)
+	if (myTurn){
+		identify x,y position selected
+		button=opponentBoard.getControl(Point(x,y))
+		button.setEnable(false)
+		fire(userNumber,x,y)
+		myTurn = false
+	}
+}
+
+vod setBoardPositionState(int userNumber, int x, int y, int shipType, int state){
+	if (myUser==userNumber){	//opponent fired at myBoard
+		button=myBoard.getControl(Point(x,y))
+		if (state==3){
+			button.setBackgroundColor(RED)
+		}
+		else //state==2
+			button.setBackgroundColor(GREY)
+	}
+	else{				//result of my firing at opponentBoard
+		if (state==3){
+			button=opponentBoard.getControl(Point(x,y))
+			button.setBackgroundColor(RED)
+			myBoard.firedAt(shipType)
+			prograssBar=opponentBoard.getControl(shipType)
+			int numberOfShots=opponentBoard.getNumberOfShotsFiredAt(shipType)
+			progressBar.setValue(numberOfShots)
+			Toolkit.getDefaultTool().beep()
+		}
+	}
+}
+
+actionMyBoardSelected(){					//occurs when configuring my ships on my board
+	identify x,y position selected
+	save x,y to lastX and lastY
+	shipType=findShipTypeEnabled()			//from the configuration panel
+	selectedOrientation=findShipOrientation()		//from the configuration panel
+	validPosition=isValidShipPosition(shipType,selectedOrientation,x,y) //on myBoard
+	if (validPosition)
+		addMyShip(shipType,selectedOrientation,x,y)
+}
+
+boolean isValidShipPosition(int shipType, int selectedOrientation, int x, int y){	//on myBoard
+	return true if the spaces for the shipType in the orientation are all available (buttons are still enabled)
+}
+
+void addMyShip(int shipType, int selectedOrientation, int x, int y){	//on myBoard
+	for the button at x,y and in the orientation selected, for the shipType length{
+		set the button background to Green and disable the button
+		enable Save and Cancel buttons on configuration panel
+	}
+
+}
+
+actionSaveConfigure(){
+	shipType=findShipTypeEnabled()			//from the configuration panel
+	int selectedOrientation=findShipOrientation()		//from the configuration panel
+	send to server the command setShipAt(userNumber, lastX, lastY, shipType, selectedOrientation)
+	disable radioButton[shipType]
+	disable orientationDropDown[shipType]
+	disable saveButton
+	disable cancelButton
+	select next radio button if any
+}
+
+actionCancelConfiguration(){
+	shipType=findShipTypeEnabled()			//from the configuration panel
+	selectedOrientation=findShipOrientation()		//from the configuration panel
+	for the button at lastX,lastY and in the orientation selected, for the shipType length{
+		set the button background to defaultColor and enable the button
+	}
+
+}
+
+void setWinner(int userNumnber){
+	if (userNumber==myUserNumber)
+		indicate that I WON
+	else
+		indicate that the opponent WON
+}
+
+void theopponentDisconnected(){
+	indicate that opponent has left the building
+}
+
+
+_____________________________________________________________________________________________________________________
+
+Server Operations:
+initialize(){
+ create user1BattleField and user2BattleField.
+ 
+ playLevel=0
+ create 2 server connections
+}
+
+void setMyName(int userNumber, string name){
+	if (user1)	
+		user1Battlefield.setName(name)
+	else
+		user2Battlefield.setName(name)
+}
+
+void setShiptAt (int userNumber, int x, int y, int shipType, int selectedOrientation){
+	//check that the userNumber has less then 5 ships
+	if (user1)&&(user1Battlefield.getNumberOfShips<5){
+		shipLength=shipType.length()
+		if (selectedOrientation==0){
+			for (offset=0; offset<shipLength;offset++){
+				set user1BattleField[x+offset][y][0]=1
+				set user1BattleField[x+offset][y][1]=shipType
+			}
+		else{	//Orientation is Vertical
+			for (offset=0; offset<shipLength;offset++){
+				set user1BattleField[x][y+offset][0]=1
+				set user1BattleField[x][y+offset][1]=shipType
+		}
+		user1Battlefield.incrementNumberOfShips(1)
+	}
+	else {
+		handle user2BattleField
+	}	
+	if both users have placed all their 5 ships and the play level has been set{
+		setBoardsToPlayMode(user1)
+		setBoardsToPlayMode(user1)
+		user=random()
+		setYourTurn(user, true)	
+	}
+
+}
+
+void setYourTurn (int userNumber, boolean state){
+	if (user1){
+		set user1NumberOfShots=0
+		send to user1
+	}else{
+		set user2NumberOfShots=0
+		send to user2
+	}
+}
+void fire(int userNumber, int x, int y){
+	if (playLevel==0){
+		if (user1){
+			int state = user2BattleField.getShipState(x,y)
+			if (state <=1){
+				state = state + 2
+				user2BattleField.setShipState((x,y), state)	
+			}
+		else handle user2{
+		}
+		if(user1){
+			int shipType = user2BattleField.getShipType(x,y)
+			int state = user2BattleField.getShipState (x,y)
+			send to user1 setBoardPositionState(2,x,y,shipType,state)
+			send to user2 setBoardPositionState(2,x,y,shipType,state)		
+		}
+		else{
+			int shipType = user1BattleField.getShipType(x,y)
+			int state = user1BattleField.getShipState (x,y)
+			send to user1 setBoardPositionState(1,x,y,shipType,state)
+			send to user2 setBoardPositionState(1,x,y,shipType,state)
+		}
+	}
+}
+
+
+
+
+
+* command parameters are comma separated.
+From client to server:
+						cmd#	par1	par2	par3	par4	par5
+------------------------------------------------------------------------------------------------------------------------------------------------------
+void setMyName(int userNumber, string name)		1	int	string
+void setPlayLevel(int userNumber, int level)		2	int	int
+void setShiptAt(int userNumber, int x, int y, int shipType, boolean verticalOrientation)
+						3	int	int	int	int	boolean
+void fire(userNumber, int x, int y)
+						4	int	int	int
+				
+
+
+* command parameters are comma separated.
+Server to Client:
+						cmd#	par1	par2	par3	par4	par5
+---------------------------------------------------------------------------------------------------------------------------------------------------
+void setUserNumber (int userNumber)			1	int
+void setOpponentName (string name)			2	string
+void setBoardsToConfigureMode()			3
+void setBoardsToPlayMode()				4
+void setYourTurn(boolean state)			5	boolean
+void setWinner(int userNumber)			6	int
+void setBoardPositionState(int userNumber, int x, int y, int shipType, int state)
+						7	int	int	int	int	int	
+void setOpponentDisconnected()			13
